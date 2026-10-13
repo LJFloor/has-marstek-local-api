@@ -114,6 +114,25 @@ async def test_setup_connection_failure_triggers_retry(
     assert mock_config_entry.state == ConfigEntryState.SETUP_RETRY
 
 
+async def test_setup_udp_bind_failure_triggers_retry(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry
+) -> None:
+    """Transient UDP bind failures must retry setup instead of staying in SETUP_ERROR.
+
+    An uncaught OSError from socket creation is SETUP_ERROR and never
+    retries. ConfigEntryNotReady is the documented recovery path.
+    https://developers.home-assistant.io/docs/integration_setup_failures
+    """
+    mock_config_entry.add_to_hass(hass)
+    client = create_mock_client(setup_error=OSError("Address already in use"))
+
+    with patch_marstek_integration(client=client):
+        await hass.config_entries.async_setup(mock_config_entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert mock_config_entry.state == ConfigEntryState.SETUP_RETRY
+
+
 async def test_services_registered_during_setup(
     hass: HomeAssistant, mock_config_entry: MockConfigEntry
 ) -> None:
