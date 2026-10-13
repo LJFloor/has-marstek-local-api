@@ -463,10 +463,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: MarstekConfigEntry) -> b
 
     stored_ip = entry.data[CONF_HOST]
     stored_port = int(entry.data.get(CONF_PORT, DEFAULT_UDP_PORT))
-    # One UDP client per Open API port; devices on the same port share it
-    udp_client = await _get_or_create_udp_client(
-        hass, port=stored_port, host=stored_ip, owner=entry.entry_id
-    )
+    # One UDP client per Open API port; devices on the same port share it.
+    # Bind failures are transient (port in use, network not up yet) and must
+    # retry: a bare OSError becomes SETUP_ERROR with no automatic recovery.
+    # https://developers.home-assistant.io/docs/integration_setup_failures
+    try:
+        udp_client = await _get_or_create_udp_client(
+            hass, port=stored_port, host=stored_ip, owner=entry.entry_id
+        )
+    except OSError as err:
+        raise _connection_not_ready(hass, entry, stored_ip, err) from err
 
     try:
         return await _async_setup_entry_with_client(hass, entry, udp_client, stored_ip, stored_port)
