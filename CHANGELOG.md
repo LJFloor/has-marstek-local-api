@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.3
+
+### Patch Changes
+
+- c010295: Retry setup when the Open API UDP socket cannot be bound.
+
 ## 1.2.2
 
 ### Patch Changes
